@@ -1,0 +1,209 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Example of the Authorization Code flow with Spotify</title>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <style type="text/css">
+      #login, #loggedin {
+        display: none;
+      }
+      .text-overflow {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 500px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div id="login">
+        <h1>Logga in på Ragges Raggarradio!</h1>
+        <a href="/login" class="btn btn-primary">Log in with Spotify</a>
+      </div>
+      <div id="loggedin">
+        <div id="user-profile">
+        </div>
+        <div id="oauth">
+        </div>
+        <div id="current-status">
+        </div>
+        
+        <button class="btn-play" disabled="disabled" id="play-elvis"><img class="img-responsive" src="img/elvis.jpg" alt="Elvis" /> Elvis</button>
+        <button class="btn-play" disabled="disabled" id="play-roy-orbinson"><img class="img-responsive" src="img/roy-orbinson.jpg" alt="Roy Orbinson" /> Roy Orbinson</button>
+        <button class="btn-play" disabled="disabled" id="play-jerry-williams"><img class="img-responsive" src="img/jerry.jpg" alt="Jerry Williams" /> Jerry Williams</button>
+        <button class="btn-play" disabled="disabled" id="play-julmusik"><img class="img-responsive" src="img/jul.jpg" alt="Julmusik" /> Julmusik</button>
+        
+        <div class="row">
+          <button class="btn btn-play" disabled="disabled" id="shuffle">&#10542; Shuffla</button>
+          <button class="btn btn-default" id="obtain-new-token">Jag lyssnar fortfarande!</button>
+        </div>
+      </div>
+    </div>
+
+    <script id="user-profile-template" type="text/x-handlebars-template">
+      <h1>Inloggad som {{display_name}}</h1>
+      <div class="media">
+        <div class="pull-left">
+          <img class="media-object" width="150" src="{{images.0.url}}" />
+        </div>
+      </div>
+    </script>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0-alpha.1/handlebars.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script>
+      (function() {
+
+        /**
+         * Obtains parameters from the hash of the URL
+         * @return Object
+         */
+        function getHashParams() {
+          var hashParams = {};
+          var e, r = /([^&;=]+)=?([^&;]*)/g,
+              q = window.location.hash.substring(1);
+          while ( e = r.exec(q)) {
+             hashParams[e[1]] = decodeURIComponent(e[2]);
+          }
+          return hashParams;
+        }
+
+        var songs = {
+          'Elvis': 'spotify:artist:43ZHCT0cAZBISjO8DG9PnE',
+          'Roy Orbinson': 'spotify:artist:0JDkhL4rjiPNEp92jAgJnS',
+          'Julmusik': 'spotify:album:4bpM7VVbCVefDLKI0XFvvq',
+          'Jerry Williams': 'spotify:artist:1PJOXqvEZQjdDAV1R5rS07'
+        };
+
+        var userProfileSource = document.getElementById('user-profile-template').innerHTML,
+            userProfileTemplate = Handlebars.compile(userProfileSource),
+            userProfilePlaceholder = document.getElementById('user-profile');
+
+        var params = getHashParams();
+
+        var access_token = params.access_token,
+            refresh_token = params.refresh_token,
+            error = params.error;
+        
+        var deviceId = null;
+
+        function setStatus(newStatus) {
+          document.getElementById('current-status').innerHTML = newStatus;
+        }
+
+        function enablePlayback() {
+          Array.prototype.forEach.call(document.getElementsByClassName('btn-play'), function(b) { b.removeAttribute('disabled'); });
+        }
+
+        function disablePlayback() {
+          Array.prototype.forEach.call(document.getElementsByClassName('btn-play'), (b) => b.setAttribute('disabled', 'disabled'));
+        }
+
+        function getSpeakerDeviceId() {
+          $.ajax({
+              url: 'https://api.spotify.com/v1/me/player/devices',
+              headers: {
+                'Authorization': 'Bearer ' + access_token
+              },
+              success: function(response) {
+                // Remember device ID
+                var speakers = response.devices.filter(d => d.type === 'Speaker');
+                if (speakers[0] === undefined) {
+                  alert('Hittade ingen högtalare');
+                  setStatus('Hittade ingen högtalare');
+                  disablePlayback();
+                } else {
+                  deviceId = speakers[0].id;
+                  enablePlayback();
+                }
+              }, error: function() {
+                setStatus('Kunde inte hämta uppspelningsenheter');
+                disablePlayback();
+              }
+            });
+        }
+
+        function playSong(songAlias) {
+          var context = songs[songAlias];
+          document.getElementById('current-status').innerHTML = 'Laddar ' + songAlias + '...';
+          $.ajax({
+              url: 'https://api.spotify.com/v1/me/player/play?device_id=' + deviceId,
+              method: 'PUT',
+              headers: {
+                'Authorization': 'Bearer ' + access_token
+              },
+              contentType: 'text/plain;charset=UTF-8',
+              data: JSON.stringify({
+                'context_uri': context
+                /*'offset': {
+                  'position': 0
+                },
+                'position_ms': 0*/
+              }),
+              success: function(response) {
+                setStatus('Spelar ' + songAlias + '');
+              }
+            });
+        }
+
+        function shuffle(state) {
+          $.ajax({
+              url: 'https://api.spotify.com/v1/me/player/shuffle?state=' + state + '&device_id=' + deviceId,
+              method: 'PUT',
+              headers: {
+                'Authorization': 'Bearer ' + access_token
+              }
+            });
+        }
+
+        function refreshToken() {
+          $.ajax({
+              url: '/refresh_token',
+              data: {
+                'refresh_token': refresh_token
+              }
+            }).done(function(data) {
+              access_token = data.access_token;
+              getSpeakerDeviceId();
+            });
+        }
+
+        if (error) {
+          alert('There was an error during the authentication');
+        } else {
+          if (access_token) {
+
+            $.ajax({
+                url: 'https://api.spotify.com/v1/me',
+                headers: {
+                  'Authorization': 'Bearer ' + access_token
+                },
+                success: function(response) {
+                  userProfilePlaceholder.innerHTML = userProfileTemplate(response);
+
+                  $('#login').hide();
+                  $('#loggedin').show();
+                  getSpeakerDeviceId();
+                }
+            });
+          } else {
+              // render initial screen
+              $('#login').show();
+              $('#loggedin').hide();
+          }
+
+          document.getElementById('obtain-new-token').addEventListener('click', refreshToken, false);
+          document.getElementById('play-elvis').addEventListener('click', function () { playSong('Elvis') }, false);
+          document.getElementById('play-roy-orbinson').addEventListener('click', function () { playSong('Roy Orbinson') }, false);
+          document.getElementById('play-jerry-williams').addEventListener('click', function () { playSong('Jerry Williams') }, false);
+          document.getElementById('play-julmusik').addEventListener('click', function () { playSong('Julmusik') }, false);
+          document.getElementById('shuffle').addEventListener('click', function () { shuffle(true); }, false);
+          
+        }
+      })();
+    </script>
+  </body>
+</html>
+
