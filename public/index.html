@@ -172,6 +172,9 @@
               }),
               success: function(response) {
                 setStatus('Spelar ' + songAlias + '', 'success');
+              },
+              error: function() {
+                setStatus('Uppspelning misslyckades', 'danger');
               }
             });
         }
