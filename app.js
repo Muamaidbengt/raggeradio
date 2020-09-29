@@ -15,7 +15,11 @@ var cookieParser = require('cookie-parser');
 
 var client_id = '0f31a212e3fb44f5a2891b661019e642'; // Your client id
 var client_secret = '41412242f80940c7a993a750053967d0'; // Your secret
-var redirect_uri = 'https://raggeradio.azurewebsites.net/callback'; // Your redirect uri
+const hostname = process.env.WEBSITE_HOSTNAME || 'localhost'; 
+const port = process.env.PORT || 8888;
+const scheme = hostname === 'localhost' ? 'http' : 'https';
+const public_port = port === 8888 ? ':8888' : '';
+const redirect_uri = scheme + '://' + hostname + public_port + '/callback'; // Your redirect uri
 
 /**
  * Generates a random string containing numbers and letters
@@ -143,6 +147,7 @@ app.get('/refresh_token', function(req, res) {
   });
 });
 
-const port = process.env.PORT || 8888;
+
 console.log('Listening on ' + port);
+console.log('Redirecting to ' + redirect_uri);
 app.listen(port);

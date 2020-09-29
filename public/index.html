@@ -27,23 +27,28 @@
         </div>
         <div id="oauth">
         </div>
-        <div id="current-status">
+        <div id="current-status" class="alert">
         </div>
         
+        <div class="form-group">
+          <select id="select-device">
+          </select>
+        </div>
         <button class="btn-play" disabled="disabled" id="play-elvis"><img class="img-responsive" src="img/elvis.jpg" alt="Elvis" /> Elvis</button>
         <button class="btn-play" disabled="disabled" id="play-roy-orbinson"><img class="img-responsive" src="img/roy-orbinson.jpg" alt="Roy Orbinson" /> Roy Orbinson</button>
         <button class="btn-play" disabled="disabled" id="play-jerry-williams"><img class="img-responsive" src="img/jerry.jpg" alt="Jerry Williams" /> Jerry Williams</button>
         <button class="btn-play" disabled="disabled" id="play-julmusik"><img class="img-responsive" src="img/jul.jpg" alt="Julmusik" /> Julmusik</button>
         
-        <div class="row">
-          <button class="btn btn-play" disabled="disabled" id="shuffle">&#10542; Shuffla</button>
-          <button class="btn btn-default" id="obtain-new-token">Jag lyssnar fortfarande!</button>
-        </div>
+          <div class="form-group">
+            <button class="btn btn-play" disabled="disabled" id="shuffle">&#10542; Shuffla</button>
+            <button class="btn btn-default" id="obtain-new-token">Jag lyssnar fortfarande!</button>
+          </div>
       </div>
     </div>
 
     <script id="user-profile-template" type="text/x-handlebars-template">
-      <h1>Inloggad som {{display_name}}</h1>
+      <h1>Ragges Raggarradio</h1>
+      <h4>Inloggad som {{display_name}}</h1>
       <div class="media">
         <div class="pull-left">
           <img class="media-object" width="150" src="{{images.0.url}}" />
@@ -89,8 +94,10 @@
         
         var deviceId = null;
 
-        function setStatus(newStatus) {
-          document.getElementById('current-status').innerHTML = newStatus;
+        function setStatus(newStatus, style) {
+          const statusEm = document.getElementById('current-status');
+          statusEm.classList = 'alert alert-' + style;
+          statusEm.innerHTML = newStatus;
         }
 
         function enablePlayback() {
@@ -101,7 +108,30 @@
           Array.prototype.forEach.call(document.getElementsByClassName('btn-play'), (b) => b.setAttribute('disabled', 'disabled'));
         }
 
-        function getSpeakerDeviceId() {
+        function populateDevices(devices) {
+          const selectElement = document.getElementById('select-device');
+          selectElement.innerHTML = '';
+          var option = document.createElement('option');
+          option.innerHTML = 'Välj högtalare';
+          option.setAttribute('value', 0);
+          selectElement.appendChild(option);
+
+          devices.forEach(d => {
+            option = document.createElement('option');
+            option.innerHTML = d.name;
+            option.setAttribute('value', d.id);
+            if (d.id === deviceId) {
+              option.setAttribute('selected', '');
+            }
+            selectElement.appendChild(option);
+          });
+
+          selectElement.dispatchEvent(new Event('change'));
+
+          enablePlayback();
+        }
+
+        function getDevices() {
           $.ajax({
               url: 'https://api.spotify.com/v1/me/player/devices',
               headers: {
@@ -111,15 +141,13 @@
                 // Remember device ID
                 var speakers = response.devices.filter(d => d.type === 'Speaker');
                 if (speakers[0] === undefined) {
-                  alert('Hittade ingen högtalare');
-                  setStatus('Hittade ingen högtalare');
+                  setStatus('Hittade ingen högtalare', 'danger');
                   disablePlayback();
                 } else {
-                  deviceId = speakers[0].id;
-                  enablePlayback();
+                  populateDevices(response.devices);
                 }
               }, error: function() {
-                setStatus('Kunde inte hämta uppspelningsenheter');
+                setStatus('Kunde inte hämta uppspelningsenheter', 'danger');
                 disablePlayback();
               }
             });
@@ -127,7 +155,7 @@
 
         function playSong(songAlias) {
           var context = songs[songAlias];
-          document.getElementById('current-status').innerHTML = 'Laddar ' + songAlias + '...';
+          setStatus('Laddar ' + songAlias + '...', 'info');
           $.ajax({
               url: 'https://api.spotify.com/v1/me/player/play?device_id=' + deviceId,
               method: 'PUT',
@@ -143,7 +171,7 @@
                 'position_ms': 0*/
               }),
               success: function(response) {
-                setStatus('Spelar ' + songAlias + '');
+                setStatus('Spelar ' + songAlias + '', 'success');
               }
             });
         }
@@ -166,7 +194,7 @@
               }
             }).done(function(data) {
               access_token = data.access_token;
-              getSpeakerDeviceId();
+              getDevices();
             });
         }
 
@@ -185,7 +213,7 @@
 
                   $('#login').hide();
                   $('#loggedin').show();
-                  getSpeakerDeviceId();
+                  getDevices();
                 }
             });
           } else {
@@ -200,7 +228,17 @@
           document.getElementById('play-jerry-williams').addEventListener('click', function () { playSong('Jerry Williams') }, false);
           document.getElementById('play-julmusik').addEventListener('click', function () { playSong('Julmusik') }, false);
           document.getElementById('shuffle').addEventListener('click', function () { shuffle(true); }, false);
-          
+          document.getElementById('select-device').addEventListener('change', function() { 
+            deviceId = document.getElementById('select-device').value;
+            if (deviceId === '0') {
+              disablePlayback();
+              setStatus('Ingen högtalare vald', 'warning');
+            } else {
+              enablePlayback();
+              setStatus('', '');
+            }
+             
+          }, false);
         }
       })();
     </script>
