@@ -138,9 +138,7 @@
                 'Authorization': 'Bearer ' + access_token
               },
               success: function(response) {
-                // Remember device ID
-                var speakers = response.devices.filter(d => d.type === 'Speaker');
-                if (speakers[0] === undefined) {
+                if (response.devices[0] === undefined) {
                   setStatus('Hittade ingen högtalare', 'danger');
                   disablePlayback();
                 } else {
