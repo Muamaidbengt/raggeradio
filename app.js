@@ -13,8 +13,11 @@ var cors = require('cors');
 var querystring = require('querystring');
 var cookieParser = require('cookie-parser');
 
-var client_id = '0f31a212e3fb44f5a2891b661019e642'; // Your client id
-var client_secret = '41412242f80940c7a993a750053967d0'; // Your secret
+const dotenv = require('dotenv');
+dotenv.config();
+
+const client_id = process.env.CLIENT_ID; // Your client id
+const client_secret = process.env.CLIENT_SECRET; // Your secret
 const hostname = process.env.WEBSITE_HOSTNAME || 'localhost'; 
 const port = process.env.PORT || 8888;
 const scheme = hostname === 'localhost' ? 'http' : 'https';
