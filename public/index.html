@@ -1,8 +1,10 @@
 <!doctype html>
 <html>
   <head>
+    <meta charset="utf-8">
     <title>Ragges Raggarradio (powered by Spotify)</title>
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="site.css">
     <style type="text/css">
       #login, #loggedin {
         display: none;
@@ -22,7 +24,7 @@
         <h1>Logga in på Ragges Raggarradio!</h1>
         <a href="/login" class="btn btn-primary">Log in with Spotify</a>
       </div>
-      <div id="loggedin">
+      <div id="loggedin" class="form-inline">
         <div id="user-profile">
         </div>
         <div id="oauth">
@@ -31,18 +33,21 @@
         </div>
         
         <div class="form-group">
-          <select id="select-device">
+          <label for="select-device">Ljudet kommer från:</label>
+          <select id="select-device" class="form-control">
           </select>
         </div>
-        <button class="btn-play" disabled="disabled" id="play-elvis"><img class="img-responsive" src="img/elvis.jpg" alt="Elvis" /> Elvis</button>
-        <button class="btn-play" disabled="disabled" id="play-roy-orbinson"><img class="img-responsive" src="img/roy-orbinson.jpg" alt="Roy Orbinson" /> Roy Orbinson</button>
-        <button class="btn-play" disabled="disabled" id="play-jerry-williams"><img class="img-responsive" src="img/jerry.jpg" alt="Jerry Williams" /> Jerry Williams</button>
-        <button class="btn-play" disabled="disabled" id="play-julmusik"><img class="img-responsive" src="img/jul.jpg" alt="Julmusik" /> Julmusik</button>
-        
-          <div class="form-group">
-            <button class="btn btn-play" disabled="disabled" id="shuffle">&#10542; Shuffla</button>
-            <button class="btn btn-default" id="obtain-new-token">Jag lyssnar fortfarande!</button>
-          </div>
+        <div class="form-group">
+          <button class="btn btn-play btn-primary" disabled="disabled" id="shuffle">&#x1F500; Shuffla</button>
+          <button class="btn btn-pause btn-primary" id="pause-playback">&#x23F8;&#xFE0E; Pausa</button>
+          <button class="btn btn-primary" id="obtain-new-token">Jag lyssnar fortfarande!</button>
+        </div>
+        <div class="form-group row">
+          <button class="btn-play btn btn-default" disabled="disabled" id="play-elvis"><img class="img-artist" src="img/elvis.jpg" alt="Elvis" /> Elvis</button>
+          <button class="btn-play btn btn-default" disabled="disabled" id="play-roy-orbinson"><img class="img-artist" src="img/roy-orbinson.jpg" alt="Roy Orbinson" /> Roy Orbinson</button>
+          <button class="btn-play btn btn-default" disabled="disabled" id="play-jerry-williams"><img class="img-artist" src="img/jerry.jpg" alt="Jerry Williams" /> Jerry Williams</button>
+          <button class="btn-play btn btn-default" disabled id="play-julmusik"><img class="img-artist" src="img/jul.jpg" alt="Julmusik" /> Julmusik</button>
+        </div>
       </div>
     </div>
 
@@ -93,7 +98,7 @@
             refresh_token = params.refresh_token,
             error = params.error;
         
-        var deviceId = null;
+        var deviceId = 0;
 
         function setStatus(newStatus, style) {
           const statusEm = document.getElementById('current-status');
@@ -102,11 +107,11 @@
         }
 
         function enablePlayback() {
-          Array.prototype.forEach.call(document.getElementsByClassName('btn-play'), function(b) { b.removeAttribute('disabled'); });
+          $('.btn-play').attr('disabled', false);
         }
 
         function disablePlayback() {
-          Array.prototype.forEach.call(document.getElementsByClassName('btn-play'), (b) => b.setAttribute('disabled', 'disabled'));
+          $('.btn-play').attr('disabled', true);
         }
 
         function populateDevices(devices) {
@@ -128,8 +133,6 @@
           });
 
           selectElement.dispatchEvent(new Event('change'));
-
-          enablePlayback();
         }
 
         function getDevices() {
@@ -164,10 +167,6 @@
               contentType: 'text/plain;charset=UTF-8',
               data: JSON.stringify({
                 'context_uri': context
-                /*'offset': {
-                  'position': 0
-                },
-                'position_ms': 0*/
               }),
               success: function(response) {
                 setStatus('Spelar ' + songAlias + '', 'success');
@@ -176,6 +175,18 @@
                 setStatus('Uppspelning misslyckades', 'danger');
               }
             });
+        }
+
+        function pausePlayback() {
+          setStatus('Pausar', 'warning');
+          $.ajax({
+            url: 'https://api.spotify.com/v1/me/player/pause',
+            method: 'PUT',
+            headers: {
+              'Authorization': 'Bearer ' + access_token
+            },
+            success: () => setStatus('Pausad', 'warning')
+          });
         }
 
         function shuffle(state) {
@@ -241,6 +252,7 @@
             }
              
           }, false);
+          document.getElementById('pause-playback').addEventListener('click', pausePlayback);
         }
       })();
     </script>
