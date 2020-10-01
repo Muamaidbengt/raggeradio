@@ -42,15 +42,15 @@
           <button class="btn btn-pause btn-primary" id="pause-playback">&#x23F8;&#xFE0E; Pausa</button>
           <button class="btn btn-primary" id="obtain-new-token">Jag lyssnar fortfarande!</button>
         </div>
-        <div class="form-group row">
-          <button class="btn-play btn btn-default" disabled="disabled" id="play-elvis"><img class="img-artist" src="img/elvis.jpg" alt="Elvis" /> Elvis</button>
-          <button class="btn-play btn btn-default" disabled="disabled" id="play-roy-orbinson"><img class="img-artist" src="img/roy-orbinson.jpg" alt="Roy Orbinson" /> Roy Orbinson</button>
-          <button class="btn-play btn btn-default" disabled="disabled" id="play-jerry-williams"><img class="img-artist" src="img/jerry.jpg" alt="Jerry Williams" /> Jerry Williams</button>
-          <button class="btn-play btn btn-default" disabled id="play-julmusik"><img class="img-artist" src="img/jul.jpg" alt="Julmusik" /> Julmusik</button>
+        <div class="form-group row" id="songs-placeholder">
         </div>
       </div>
     </div>
 
+    <script id="song-template" type="text/x-handlebars-template">
+      <button class="btn btn-play btn-default" disabled id="play-{{id}}" data-context="{{context}}"><img class="img-artist" src="img/{{imgsrc}}" alt="{{name}}" />{{name}}</button>
+    </script>
+    
     <script id="user-profile-template" type="text/x-handlebars-template">
       <h1>Ragges Raggarradio</h1>
       <h4>Inloggad som {{display_name}}</h1>
@@ -63,9 +63,9 @@
 
     <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0-alpha.1/handlebars.min.js"></script>
     <script src="//code.jquery.com/jquery-1.10.1.min.js"></script>
-    <script>
+    <script type="module">
+      import { Songs } from './media.js';
       (function() {
-
         /**
          * Obtains parameters from the hash of the URL
          * @return Object
@@ -81,17 +81,13 @@
           return hashParams;
         }
 
-        var songs = {
-          'Elvis': 'spotify:artist:43ZHCT0cAZBISjO8DG9PnE',
-          'Roy Orbinson': 'spotify:artist:0JDkhL4rjiPNEp92jAgJnS',
-          'Julmusik': 'spotify:album:4bpM7VVbCVefDLKI0XFvvq',
-          'Jerry Williams': 'spotify:artist:1PJOXqvEZQjdDAV1R5rS07'
-        };
+        var songs = Songs();
 
         var userProfileSource = document.getElementById('user-profile-template').innerHTML,
             userProfileTemplate = Handlebars.compile(userProfileSource),
             userProfilePlaceholder = document.getElementById('user-profile');
-
+        var songSource = document.getElementById('song-template').innerHTML,
+            songTemplate = Handlebars.compile(songSource);
         var params = getHashParams();
 
         var access_token = params.access_token,
@@ -155,9 +151,8 @@
             });
         }
 
-        function playSong(songAlias) {
-          var context = songs[songAlias];
-          setStatus('Laddar ' + songAlias + '...', 'info');
+        function playSong(song) {
+          setStatus('Laddar ' + song.name + '...', 'info');
           $.ajax({
               url: 'https://api.spotify.com/v1/me/player/play?device_id=' + deviceId,
               method: 'PUT',
@@ -166,10 +161,10 @@
               },
               contentType: 'text/plain;charset=UTF-8',
               data: JSON.stringify({
-                'context_uri': context
+                'context_uri': song.context
               }),
               success: function(response) {
-                setStatus('Spelar ' + songAlias + '', 'success');
+                setStatus('Spelar ' + song.name + '', 'success');
               },
               error: function() {
                 setStatus('Uppspelning misslyckades', 'danger');
@@ -236,10 +231,11 @@
           }
 
           document.getElementById('obtain-new-token').addEventListener('click', refreshToken, false);
-          document.getElementById('play-elvis').addEventListener('click', function () { playSong('Elvis') }, false);
-          document.getElementById('play-roy-orbinson').addEventListener('click', function () { playSong('Roy Orbinson') }, false);
-          document.getElementById('play-jerry-williams').addEventListener('click', function () { playSong('Jerry Williams') }, false);
-          document.getElementById('play-julmusik').addEventListener('click', function () { playSong('Julmusik') }, false);
+          songs.forEach(s => {
+            $('#songs-placeholder').append(songTemplate(s));
+            $('#play-' + s.id).on('click', () => playSong(s));
+          });
+
           document.getElementById('shuffle').addEventListener('click', function () { shuffle(true); }, false);
           document.getElementById('select-device').addEventListener('change', function() { 
             deviceId = document.getElementById('select-device').value;
