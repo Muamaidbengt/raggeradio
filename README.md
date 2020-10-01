@@ -1,4 +1,4 @@
-# Ragges Raggarradio
+# Ragges Raggarradio :radio:
 
 Ett simplifierat Spotify-gränssnitt med ett mycket begränsat urval av musik.
 
